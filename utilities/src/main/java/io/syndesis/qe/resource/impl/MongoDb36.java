@@ -1,7 +1,8 @@
-package io.syndesis.qe.templates;
+package io.syndesis.qe.resource.impl;
 
 import io.syndesis.qe.accounts.Account;
 import io.syndesis.qe.accounts.AccountsDirectory;
+import io.syndesis.qe.resource.Resource;
 import io.syndesis.qe.utils.OpenShiftUtils;
 import io.syndesis.qe.utils.TestUtils;
 import io.syndesis.qe.wait.OpenShiftWaitUtils;
@@ -22,8 +23,7 @@ import io.fabric8.kubernetes.api.model.ServiceSpecBuilder;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class MongoDb36Template {
-
+public class MongoDb36 implements Resource {
     public static final int MONGODB_PORT = 27017;
     public static final String APP_NAME = "mongodb36";
     private static final String LABEL_NAME = "app";
@@ -34,8 +34,8 @@ public class MongoDb36Template {
     private static final String MONGODB_IMAGE = "docker.io/centos/mongodb-36-centos7:latest";
     private static final String MONGDB_URL = "mongodb://user:user@mongodb/sampledb";
 
-    public static void deploy() {
-
+    @Override
+    public void deploy() {
         Account mongodbAccount = new Account();
         mongodbAccount.setService("mongodb36");
         Map<String, String> accountParameters = new HashMap<>();
@@ -117,7 +117,8 @@ public class MongoDb36Template {
         }
     }
 
-    public static void cleanUp() {
+    @Override
+    public void undeploy() {
         try {
             OpenShiftUtils.getInstance().getDeploymentConfigs().stream().filter(dc -> dc.getMetadata().getName().equals(APP_NAME)).findFirst()
                 .ifPresent(dc -> OpenShiftUtils.getInstance().deleteDeploymentConfig(dc, true));
