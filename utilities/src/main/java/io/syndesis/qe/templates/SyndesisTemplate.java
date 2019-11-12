@@ -2,6 +2,7 @@ package io.syndesis.qe.templates;
 
 import static org.assertj.core.api.Fail.fail;
 
+import io.syndesis.qe.Addon;
 import io.syndesis.qe.TestConfiguration;
 import io.syndesis.qe.utils.HTTPResponse;
 import io.syndesis.qe.utils.HttpUtils;
@@ -50,7 +51,6 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class SyndesisTemplate {
-    private static final int IMAGE_STREAM_COUNT = 8;
     private static final String CR_NAME = "app";
 
     public static void deploy() {
@@ -432,6 +432,35 @@ public class SyndesisTemplate {
                 fail("Unable to process json", e);
             }
             return null;
+        }
+    }
+
+    /**
+     * Checks if the given addon is enabled in the CR.
+     *
+     * @param addon addon to check
+     * @return true/false
+     */
+    public static boolean isAddonEnabled(Addon addon) {
+        try {
+            JSONObject spec = new JSONObject(getSyndesisCrClient().get(TestConfiguration.openShiftNamespace(), CR_NAME))
+                .getJSONObject("spec");
+
+            // Special case for external DB
+            if (addon == Addon.EXTERNAL_DB) {
+                return spec.getJSONObject("components").getJSONObject(addon.getValue()).has("externalDbURL");
+            } else {
+                return Boolean.parseBoolean(spec.getJSONObject("addons").getJSONObject(addon.getValue()).getString("enabled"));
+            }
+        } catch (KubernetesClientException kce) {
+            if (!kce.getMessage().contains("\\\"" + CR_NAME + "\\\" not found")) {
+                // If the error is something different than the CR wasn't found rethrow the exception
+                throw kce;
+            }
+            return false;
+        } catch (JSONException e) {
+            // ignore exception as some of the object wasn't present
+            return false;
         }
     }
 }
