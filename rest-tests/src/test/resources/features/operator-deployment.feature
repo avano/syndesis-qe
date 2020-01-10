@@ -39,7 +39,7 @@ Feature: Operator Deployment
 
   @ENTESB-12106
   @operator-deploy-integrations
-  Scenario: Syndesis Operator - Components - Server - Deploy integrations
+  Scenario: Syndesis Operator - Components - Server - Don't deploy integrations
     When deploy Syndesis CR from file "spec/components/server/deployIntegrations.yml"
       And wait for Syndesis to become ready
     When create start DB periodic sql invocation action step with query "SELECT * FROM CONTACT" and period "5000" ms
@@ -159,6 +159,7 @@ Feature: Operator Deployment
     When todo
 
   @ENTESB-12418
+  @ENTESB-12618
   @operator-components-limits-memory
   Scenario: Syndesis Operator - Components - Memory limits
     When deploy Syndesis CR from file "spec/components/resources.limits.memory.yml"
@@ -172,34 +173,34 @@ Feature: Operator Deployment
       And check correct volume capacity
 
   @operator-components-database-volume-capacity
-  Scenario: Syndesis Operator - Components - Database - Volume capacity
+  Scenario: Syndesis Operator - Components - Database - Volume Capacity
     When create test persistent volumes with "standard" storage class name
       And deploy Syndesis CR from file "spec/components/database/volumeCapacity.yml"
     Then check that database persistent volume capacity is greater or equals to "3Gi"
 
   @operator-components-database-volume-name
-  Scenario: Syndesis Operator - Components - Database - Volume name
+  Scenario: Syndesis Operator - Components - Database - Volume Name
     When create test persistent volumes with "standard" storage class name
       And deploy Syndesis CR from file "spec/components/database/volumeName.yml"
     Then check that test persistent volume is claimed by syndesis-db
 
   @ENTESB-12533
   @operator-components-database-volume-access-modes
-  Scenario: Syndesis Operator - Components - Database - Volume access modes
+  Scenario: Syndesis Operator - Components - Database - Volume Access Modes
     When create test persistent volumes with "standard" storage class name
       And deploy Syndesis CR from file "spec/components/database/volumeAccessModes.yml"
     Then check that test persistent volume is claimed by syndesis-db
 
   @ENTESB-12533
   @operator-components-database-volume-labels
-  Scenario: Syndesis Operator - Components - Database - Volume labels
+  Scenario: Syndesis Operator - Components - Database - Volume Labels
     When create test persistent volumes with "standard" storage class name
       And deploy Syndesis CR from file "spec/components/database/volumeLabels.yml"
     Then check that test persistent volume is claimed by syndesis-db
 
   @ENTESB-12533
   @operator-components-database-volume-storage-class
-  Scenario: Syndesis Operator - Components - Database - Volume storage class
+  Scenario: Syndesis Operator - Components - Database - Volume Storage Class
     When create test persistent volumes with "filesystem" storage class name
       And deploy Syndesis CR from file "spec/components/database/volumeStorageClass.yml"
     Then check that test persistent volume is claimed by syndesis-db
@@ -220,7 +221,7 @@ Feature: Operator Deployment
       And check that pod "i-http-to-log" logs contain string "[[options]]"
 
   @operator-components-oauth-disableSarCheck
-    Scenario: Syndesis Operator - Components - OAuth - Disable SAR check
+    Scenario: Syndesis Operator - Components - OAuth - Disable SAR Check
       When deploy Syndesis CR from file "spec/components/oauth/disableSarCheck.yml"
       Then wait for Syndesis to become ready
         And check that SAR check is disabled

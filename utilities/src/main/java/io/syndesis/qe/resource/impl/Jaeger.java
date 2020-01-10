@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.fail;
 import io.syndesis.qe.TestConfiguration;
 import io.syndesis.qe.resource.Resource;
 import io.syndesis.qe.utils.OpenShiftUtils;
+import io.syndesis.qe.wait.OpenShiftWaitUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -50,8 +51,25 @@ public class Jaeger implements Resource {
         OpenShiftUtils.getInstance().roleBindings().createOrReplaceWithNew()
             .withNewMetadata().withName("syndesis-jaeger-operator").endMetadata()
             .withNewRoleRef().withName("jaeger-operator").endRoleRef()
-            .withSubjects(new ObjectReferenceBuilder().withKind("ServiceAccount").withName("syndesis-operator").withNamespace(TestConfiguration.openShiftNamespace()).build())
+            .withSubjects(new ObjectReferenceBuilder().withKind("ServiceAccount").withName("syndesis-operator")
+                .withNamespace(TestConfiguration.openShiftNamespace()).build())
             .done();
+
+        // Jaeger operator is creating the syndesis-jaeger instance and therefore it is not possible to add the syndesis.io/component label
+        // Do it async in a new thread so that it doesn't need to be hacked in other place where it would not make sense
+        // If the wait fails, then the "wait for Syndesis to become ready" step will time out, so it is not necessary to handle the exception here
+        new Thread(() -> {
+            try {
+                OpenShiftWaitUtils.waitFor(OpenShiftWaitUtils.isAPodReady("app", "jaeger"), 5 * 60000L);
+                OpenShiftWaitUtils
+                    .waitFor(() -> OpenShiftWaitUtils.isPodReady(OpenShiftUtils.getPod(p -> p.getMetadata().getName().startsWith("syndesis-jaeger"))),
+                        5 * 60000L);
+            } catch (Exception e) {
+                log.error("Unable to find jaeger operator pod!");
+            }
+            OpenShiftUtils.getInstance().pods().withName(OpenShiftUtils.getPodByPartialName("syndesis-jaeger").get().getMetadata().getName())
+                .edit().editMetadata().addToLabels("syndesis.io/component", "syndesis-jaeger").endMetadata().done();
+        }).start();
     }
 
     @Override
@@ -59,6 +77,11 @@ public class Jaeger implements Resource {
         OpenShiftUtils.getInstance().resourceList(processedResources).delete();
         OpenShiftUtils.getInstance().apps().replicaSets().withLabel("name", "jaeger-operator").delete();
         OpenShiftUtils.getInstance().deletePods("name", "jaeger-operator");
+    }
+
+    @Override
+    public boolean isReady() {
+        return OpenShiftWaitUtils.isPodReady(OpenShiftUtils.getAnyPod("name", "jaeger-operator"));
     }
 
     private void processResources() {

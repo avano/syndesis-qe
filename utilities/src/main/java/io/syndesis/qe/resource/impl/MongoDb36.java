@@ -12,7 +12,6 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeoutException;
 
 import io.fabric8.kubernetes.api.model.ContainerPort;
 import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
@@ -109,12 +108,6 @@ public class MongoDb36 implements Resource {
             .editOrNewSpecLike(serviceSpecBuilder.build())
             .endSpec()
             .done();
-
-        try {
-            OpenShiftWaitUtils.waitFor(OpenShiftWaitUtils.areExactlyNPodsReady(LABEL_NAME, APP_NAME, 1));
-        } catch (InterruptedException | TimeoutException e) {
-            log.error("Wait for {} deployment failed ", APP_NAME, e);
-        }
     }
 
     @Override
@@ -128,5 +121,10 @@ public class MongoDb36 implements Resource {
         } catch (Exception e) {
             log.error("Error thrown while trying to delete mongodb database. It is just deletion, it should not affect following tests.", e);
         }
+    }
+
+    @Override
+    public boolean isReady() {
+        return OpenShiftWaitUtils.isPodReady(OpenShiftUtils.getAnyPod(LABEL_NAME, APP_NAME));
     }
 }

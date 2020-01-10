@@ -153,12 +153,13 @@ public class OperatorValidationSteps {
         components.keySet().forEach(component -> {
             String memoryLimit = components.getJSONObject(component).getJSONObject("resources").getJSONObject("limits").getString("memory");
             List<DeploymentConfig> dcList = OpenShiftUtils.getInstance().deploymentConfigs()
-                .withLabel("syndesis.io/component", "syndesis-" + component).list().getItems();
+                .withLabel("syndesis.io/component", "syndesis-" + ("database".equals(component) ? "db" : component)).list().getItems();
             softAssertions.assertThat(dcList).hasSize(1);
             softAssertions.assertThat(dcList.get(0).getSpec().getTemplate().getSpec().getContainers().get(0)
                 .getResources().getLimits().get("memory").getAmount())
                 .as(component).isEqualTo(memoryLimit);
         });
+        softAssertions.assertAll();
     }
 
     @Then("check correct volume capacity")

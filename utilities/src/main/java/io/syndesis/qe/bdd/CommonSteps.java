@@ -74,7 +74,11 @@ public class CommonSteps {
 
     @Then("^wait for Syndesis to become ready")
     public static void waitForSyndesis() {
-        waitFor(true);
+        try {
+            OpenShiftWaitUtils.waitFor(() -> ResourceFactory.get(Syndesis.class).isReady(), 10000L, 4 * 60000L);
+        } catch (Exception e) {
+            fail("Wait for Syndesis failed!", e);
+        }
     }
 
     @When("^deploy Camel-K$")
@@ -115,16 +119,11 @@ public class CommonSteps {
      */
     private static void undeploySyndesis() {
         ResourceFactory.get(Syndesis.class).undeployCustomResources();
-        if (TestUtils.isDcDeployed("syndesis-operator")) {
-            waitForUndeployment();
+        try {
+            OpenShiftWaitUtils.waitFor(() -> ResourceFactory.get(Syndesis.class).isUndeployed(), 10 * 60000L);
+        } catch (Exception e) {
+            fail("Wait for Syndesis undeployment failed!", e);
         }
-    }
-
-    /**
-     * Waits for syndesis to be undeployed.
-     */
-    public static void waitForUndeployment() {
-        waitFor(false);
     }
 
     /**

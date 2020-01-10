@@ -3,6 +3,7 @@ package io.syndesis.qe.resource.impl;
 import static org.assertj.core.api.Fail.fail;
 
 import io.syndesis.qe.Addon;
+import io.syndesis.qe.Component;
 import io.syndesis.qe.TestConfiguration;
 import io.syndesis.qe.resource.Resource;
 import io.syndesis.qe.utils.OpenShiftUtils;
@@ -22,6 +23,7 @@ import java.io.InputStream;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +34,7 @@ import java.util.concurrent.TimeUnit;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.LocalObjectReference;
+import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.ServiceAccount;
 import io.fabric8.kubernetes.api.model.apiextensions.CustomResourceDefinition;
 import io.fabric8.kubernetes.client.KubernetesClientException;
@@ -53,14 +56,35 @@ public class Syndesis implements Resource {
         deployCrd();
         pullOperatorImage();
         grantPermissions();
-        deployUsingOperator();
+        deployOperator();
+        deploySyndesisViaOperator();
         checkRoute();
         TodoUtils.createDefaultRouteForTodo("todo2", "/");
     }
 
     @Override
     public void undeploy() {
-        // Intentionally left blank
+        // Intentionally left blank to preserve current behavior - after test execution, syndesis was left installed and every other resource was
+        // undeployed
+        // We may need to revisit this later
+        log.warn("Skipping Syndesis undeployment");
+    }
+
+    @Override
+    public boolean isReady() {
+        EnumSet<Component> components = Component.getAllComponents();
+        List<Pod> syndesisPods = Component.getComponentPods();
+        log.info("components:" + components.size());
+        log.info("pods: " + syndesisPods.size());
+        components.forEach(c -> log.info("component:" + c.getName()));
+        syndesisPods.forEach(p -> log.info("pod: " + p.getMetadata().getName()));
+        return syndesisPods.size() == components.size() && syndesisPods.stream().allMatch(OpenShiftWaitUtils::isPodReady);
+    }
+
+    public boolean isUndeployed() {
+        List<Pod> syndesisPods = Component.getComponentPods();
+        // Either 0 pods when the namespace was empty before undeploying, or 1 pod (the operator)
+        return syndesisPods.size() == 0 || (syndesisPods.size() == 1 && syndesisPods.get(0).getMetadata().getName().startsWith("syndesis-operator"));
     }
 
     public void undeployCustomResources() {
@@ -92,15 +116,6 @@ public class Syndesis implements Resource {
                 .withType("kubernetes.io/dockerconfigjson")
                 .done();
         }
-    }
-
-    /**
-     * Deploys the operator and the custom resource.
-     */
-    private void deployUsingOperator() {
-        log.info("Deploying using Operator");
-        deployOperator();
-        deploySyndesisViaOperator();
     }
 
     /**
@@ -367,7 +382,7 @@ public class Syndesis implements Resource {
             if (addon == Addon.EXTERNAL_DB) {
                 return spec.getJSONObject("components").getJSONObject(addon.getValue()).has("externalDbURL");
             } else {
-                return Boolean.parseBoolean(spec.getJSONObject("addons").getJSONObject(addon.getValue()).getString("enabled"));
+                return spec.getJSONObject("addons").getJSONObject(addon.getValue()).getBoolean("enabled");
             }
         } catch (KubernetesClientException kce) {
             if (!kce.getMessage().contains("404")) {

@@ -2,6 +2,8 @@ package io.syndesis.qe.resource;
 
 import static org.assertj.core.api.Assertions.fail;
 
+import io.syndesis.qe.wait.OpenShiftWaitUtils;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -19,6 +21,11 @@ public class ResourceFactory {
      */
     public static <T extends Resource> void create(Class<T> clazz) {
         get(clazz).deploy();
+        try {
+            OpenShiftWaitUtils.waitFor(() -> get(clazz).isReady(), 10 * 60000L);
+        } catch (Exception e) {
+            fail("Wait for " + clazz.getName() + " failed", e);
+        }
     }
 
     public static <T extends Resource> void destroy(Class<T> clazz) {
