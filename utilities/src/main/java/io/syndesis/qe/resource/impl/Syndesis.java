@@ -572,7 +572,11 @@ public class Syndesis implements Resource {
         }
         log.info("Adding maven repo {}", replacementRepo);
 
-        serverFeatures.put("mavenRepositories", TestUtils.map("fuseqe_nexus", replacementRepo));
+        serverFeatures.put("mavenRepositories", TestUtils.map(
+            "central", "https://repo.maven.apache.org/maven2/",
+            "repo-02-redhat-ga", "https://maven.repository.redhat.com/ga/",
+            "repo-03-jboss-ea", "https://repository.jboss.org/nexus/content/groups/ea/",
+            "nginx", "http://nginx.repo.svc.cluster.local"));
     }
 
     /**
