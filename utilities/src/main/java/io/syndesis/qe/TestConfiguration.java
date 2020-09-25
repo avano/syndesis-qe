@@ -356,6 +356,10 @@ public class TestConfiguration {
         return get().readValue(APP_MONITORING_VERSION, "v1.1.6");
     }
 
+    public static boolean isSingleUser() {
+        return Boolean.parseBoolean(get().readValue(SYNDESIS_SINGLE_USER, "false"));
+    }
+
     private Properties defaultValues() {
         final Properties defaultProps = new Properties();
 
