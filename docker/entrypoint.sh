@@ -11,8 +11,13 @@ elif [ -z "${ADMIN_USERNAME}" ]; then
 fi
 
 PROFILE="rest,ui"
-if [ ! "${MODULE}" = "all" ]; then
+if [ ! "${MODULE,,}" = "all" ]; then
 	PROFILE="${MODULE}"
+fi
+
+if [ "${MODE,,}" = "full" ]; then
+	echo "Full mode is supported only when the version is released"
+#	exit 1
 fi
 
 echo "=============== Syndesis QE test suite ==============="
@@ -53,11 +58,11 @@ else
 fi
 
 IS_DELOREAN=false
+	oc login  --insecure-skip-tls-verify=true -u "${ADMIN_USERNAME}" -p "${ADMIN_PASSWORD}" "${URL}"
 # Full mode means install & test
 if [ "${MODE,,}" = "full" ]; then
 	echo "Using full mode, deploying Fuse Online"
 
-	oc login  --insecure-skip-tls-verify=true -u "${ADMIN_USERNAME}" -p "${ADMIN_PASSWORD}" "${URL}"
 	oc delete project ${NAMESPACE} || :
 	until ! oc project "${NAMESPACE}"; do echo "Project still exists"; sleep 5; done
 
@@ -117,15 +122,12 @@ syndesis.config.enableTestSupport=true
 EOF
 fi
 
-./mvnw clean test -P "${PROFILE}" -Dcucumber.options="--tags '""${TAGS}""'" -Dmaven.surefire.debug="-Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=5005 -Xnoagent -Djava.compiler=NONE"
-
-STATUS=$?
-
-echo "Status code from mvn command is: $STATUS . The test results will be stored into /test-run-results folder"
+./mvnw clean verify -fn -P "${PROFILE}" -Dtags="${TAGS}" -Dmaven.surefire.debug="-Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=5005 -Xnoagent -Djava.compiler=NONE"
 
 [ -d "/test-run-results" ] && sudo rm -rf /test-run-results/* || sudo mkdir /test-run-results
 
-while read -r FILE; do sudo mkdir -p /test-run-results/$(dirname $FILE); sudo cp $FILE /test-run-results/$(dirname $FILE); done <<< "$(find * -type f -name "*.log")"
-while read -r DIR; do sudo mkdir -p /test-run-results/$DIR; sudo cp -r $DIR/* /test-run-results/$DIR; done <<< "$(find * -maxdepth 2 -type d -wholename "*target/cucumber*")"
+#while read -r FILE; do sudo mkdir -p /test-run-results/$(dirname $FILE); sudo cp $FILE /test-run-results/$(dirname $FILE); done <<< "$(find * -type f -name "*.log")"
+#while read -r DIR; do sudo mkdir -p /test-run-results/$DIR; sudo cp -r $DIR/* /test-run-results/$DIR; done <<< "$(find * -maxdepth 2 -type d -wholename "*target/cucumber*")"
 
-exit $STATUS
+HAS_FAILURES="$(grep -R "failure message" /test-run-results || :)"
+[ -z "${HAS_FAILURES}" ] && exit 0 || exit 1

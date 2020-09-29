@@ -32,14 +32,10 @@ FROM alpine/git as gitRepoSyndesis
 
 ARG SYNDESIS_BRANCH_OWNER=syndesisio
 ARG SYNDESIS_BRANCH_VERSION=1.11.x
-ARG INSTALL_TAG=1.11
+ARG INSTALL_TAG=1.10
 
-RUN git clone https://github.com/${SYNDESIS_BRANCH_OWNER}/syndesis.git /syndesis \
-	&& cd /syndesis \
-	&& git checkout ${SYNDESIS_BRANCH_VERSION} \
-	&& git clone https://github.com/${SYNDESIS_BRANCH_OWNER}/fuse-online-install.git /fuse-online-install \
-	&& cd /fuse-online-install \
-	&& git checkout ${INSTALL_TAG}
+RUN git clone -b ${SYNDESIS_BRANCH_VERSION} https://github.com/${SYNDESIS_BRANCH_OWNER}/syndesis.git /syndesis \
+	&& git clone -b ${INSTALL_TAG} https://github.com/${SYNDESIS_BRANCH_OWNER}/fuse-online-install.git /fuse-online-install
 
 #================================================================================================================================
 ## The rest tests and utils modules use some Syndesis artifacts which are not available, it needs to build them and copy to the final image
@@ -62,57 +58,36 @@ ARG SYNDESIS_QE_BRANCH_VERSION=1.11.x
 ARG APICURIO_QE_BRANCH_OWNER=Apicurio
 ARG APICURIO_QE_BRANCH_VERSION=1.11.x
 
-RUN git clone --recurse-submodules https://github.com/${SYNDESIS_QE_BRANCH_OWNER}/syndesis-qe.git /syndesis-qe \
-	&& git clone https://github.com/${APICURIO_QE_BRANCH_OWNER}/apicurio-qe.git /apicurio \
+RUN git clone --recurse-submodules -b ${SYNDESIS_QE_BRANCH_VERSION} https://github.com/${SYNDESIS_QE_BRANCH_OWNER}/syndesis-qe.git /syndesis-qe \
+	&& git clone -b ${APICURIO_QE_BRANCH_VERSION} https://github.com/${APICURIO_QE_BRANCH_OWNER}/apicurio-qe.git /apicurio \
 	&& git clone https://github.com/jboss-fuse/marketplace-utilities /marketplace-utilities \
-	&& cd /syndesis-qe \
-	&& git checkout ${SYNDESIS_QE_BRANCH_VERSION} \
-	&& cd /apicurio \
-	&& git checkout ${APICURIO_QE_BRANCH_VERSION} \
 	&& cd /syndesis-qe/syndesis-extensions \
-	&& git checkout master
+	&& git checkout 1.10.x
 
 #================================================================================================================================
-# TODO skip for now, see next TODO
 FROM maven:3.6-jdk-8-slim as buildApicurio
 COPY --from=gitRepoSyndesisQe /marketplace-utilities /marketplace-utilities
 COPY --from=gitRepoSyndesisQe /apicurio /apicurio
 
-RUN mvn clean install -DskipTests=true -f /marketplace-utilities/pom.xml
+RUN mvn clean install -DskipTests=true -f /marketplace-utilities/pom.xml \
+	&& mvn clean install -DskipTests=true -f /apicurio/pom.xml
 
 #================================================================================================================================
-FROM maven:3.6-jdk-8-slim as buildSyndesisQE
+FROM maven:3.5-jdk-8-alpine as buildSyndesisQE
 
-## Copy builded Syndesis and Apicurio dependencies
+## Copy built Syndesis and Apicurio dependencies
 COPY --from=buildSyndesis /root/.m2/repository/io/syndesis /root/.m2/repository/io/syndesis
-
-# TODO, once marketplace-utilities is pushed to github or central, the apicurito can be build manually, for now, fill the internal repository url bellow
-#COPY --from=buildApicurio /root/.m2/repository/apicurio /root/.m2/repository/apicurio
-RUN mvn org.apache.maven.plugins:maven-dependency-plugin:3.1.2:get \
-    -DremoteRepositories=<! FILL HERE INTERNAL REPO URL WHERE APICURIO 0.0.3 IS !> \
-    -DartifactId=apicurito-tests \
-    -Dclassifier=tests \
-    -DgroupId=apicurio \
-    -Dversion=0.0.3-SNAPSHOT \
-    -Dtype=test-jar
-
+COPY --from=buildApicurio /root/.m2/repository/apicurio /root/.m2/repository/apicurio
+COPY --from=buildApicurio /root/.m2/repository/io/syndesis/qe /root/.m2/repository/io/syndesis/qe
 COPY --from=gitRepoSyndesisQe /syndesis-qe /syndesis-qe
+
 WORKDIR /syndesis-qe
 
 ## Build syndesis extensions which are used in the test suite
-# TODO build extensions failed, skip for now
-#RUN mvn clean package -B -f syndesis-extensions/pom.xml --also-make --projects :syndesis-library-jdbc-driver,:syndesis-extension-log-body,:syndesis-extension-body
+RUN mvn clean package -B -f syndesis-extensions/pom.xml --also-make --projects :syndesis-library-jdbc-driver,:syndesis-extension-log-body,:syndesis-extension-body
 
 ## Build syndesis-qe tests (To download all dependencies during the building phase. not during the running phase)
-<<<<<<< HEAD:docker/ui/Dockerfile
-RUN mvn -P ui clean install  -DskipTests
-
-WORKDIR /syndesis-qe/ui-common
-RUN mvn clean package -Pdownload-drivers
-=======
-RUN mvn -pl utilities clean install \
-	&& mvn clean install -DskipTests -Pdownload-drivers
->>>>>>> 209bd028... [Docker] Merge rest and ui together and add deploy option:docker/Dockerfile
+RUN mvn -P ui clean install -Pdownload-drivers -DskipTests
 
 ## This file has not contained 3rd party services. It is copied into the test suite in order to the tests which use self-deployed services work (AMQ broker, MongoDB).
 ## In the future, the external credential.json (with 3rd party services credential) can be pass to the image as an environment variable.
@@ -124,7 +99,7 @@ FROM selenium/standalone-firefox:78.0 as runningEnv
 WORKDIR /home/seluser
 COPY --from=buildSyndesisQE /root/.m2/repository/ /home/seluser/.m2/repository/
 COPY --from=buildSyndesisQE /syndesis-qe /home/seluser/syndesis-qe
-COPY --from=gitRepos /fuse-online-install /home/seluser/fuse-online-install
+COPY --from=gitRepoSyndesis /fuse-online-install /home/seluser/fuse-online-install
 COPY entrypoint.sh /home/seluser/entrypoint.sh
 ## Default environment variables values
 ENV TAGS '@smoke'
