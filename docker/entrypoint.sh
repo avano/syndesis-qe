@@ -124,7 +124,7 @@ syndesis.config.enableTestSupport=true
 EOF
 fi
 
-./mvnw clean verify -fn -P "${PROFILE}" -Dtags="${TAGS}" -Dmaven.surefire.debug="-Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=5005 -Xnoagent -Djava.compiler=NONE"
+./mvnw clean verify -fn -P "${PROFILE}" -Dtags="${TAGS}" -Dmaven.failsafe.debug="-Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=5005 -Xnoagent -Djava.compiler=NONE"
 
 [ -d "/test-run-results" ] && sudo rm -rf /test-run-results/* || sudo mkdir /test-run-results
 
