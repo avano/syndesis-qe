@@ -87,7 +87,7 @@ WORKDIR /syndesis-qe
 RUN mvn clean package -B -f syndesis-extensions/pom.xml --also-make --projects :syndesis-library-jdbc-driver,:syndesis-extension-log-body,:syndesis-extension-body
 
 ## Build syndesis-qe tests (To download all dependencies during the building phase. not during the running phase)
-RUN mvn -P ui clean install -Pdownload-drivers -DskipTests
+RUN mvn -P ui clean install -DskipTests -Dwebdriverextensions.version=3.1.3
 
 ## This file has not contained 3rd party services. It is copied into the test suite in order to the tests which use self-deployed services work (AMQ broker, MongoDB).
 ## In the future, the external credential.json (with 3rd party services credential) can be pass to the image as an environment variable.
