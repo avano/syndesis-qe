@@ -52,7 +52,7 @@ RUN apt-get update -y \
 #================================================================================================================================
 FROM alpine/git as gitRepoSyndesisQe
 
-ARG SYNDESIS_QE_BRANCH_OWNER=avano
+ARG SYNDESIS_QE_BRANCH_OWNER=syndesisio
 ARG SYNDESIS_QE_BRANCH_VERSION=1.11.x
 
 ARG APICURIO_QE_BRANCH_OWNER=Apicurio
